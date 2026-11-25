@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>스컬 · 해골과 장미 블러핑 게임</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#17110c; --bg2:#241a12; --panel:#2c2118; --line:#4a3826; --ink:#f3e7d0; --dim:#b9a687;
+  --gold:#e8b94a; --rose:#c22f3a; --bone:#efe6d2; --danger:#d9483b; --ok:#5cb85c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif}
+body{
+  background:
+    radial-gradient(ellipse at 50% -10%,#3b2a1b 0%,transparent 60%),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.018) 0 12px,transparent 12px 24px),
+    repeating-linear-gradient(-45deg,rgba(0,0,0,.12) 0 12px,transparent 12px 24px),
+    var(--bg);
+  background-attachment:fixed;
+}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+input{font:inherit}
+#app{max-width:1100px;margin:0 auto;padding:10px 10px 40px}
+.tribal{height:10px;margin:6px 0;background:
+  linear-gradient(135deg,transparent 33%,var(--gold) 33% 40%,transparent 40% 60%,var(--gold) 60% 67%,transparent 67%) 0 0/20px 10px;opacity:.55}
+h1.logo{font-size:44px;letter-spacing:6px;margin:18px 0 2px;text-align:center;font-weight:900;
+  text-shadow:0 3px 0 #000,0 0 22px rgba(232,185,74,.25)}
+.sub{text-align:center;color:var(--dim);margin:0 0 14px}
+.card{background:linear-gradient(180deg,var(--panel),#241a12);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{color:var(--dim);font-size:14px}
+.field input{background:#120d09;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-size:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border-radius:12px;
+  background:#3a2b1d;border:1px solid #5c4630;font-weight:700;font-size:16px;transition:transform .08s}
+.btn:active{transform:scale(.96)}
+.btn.gold{background:linear-gradient(180deg,#f0c55c,#c8921f);color:#2a1a06;border-color:#f6d98c}
+.btn.red{background:linear-gradient(180deg,#d9483b,#9c2a20);border-color:#ef7a6f}
+.btn.ghost{background:transparent}
+.btn.sm{padding:7px 11px;font-size:14px;border-radius:10px}
+.btn:disabled{opacity:.4;pointer-events:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.c{justify-content:center}
+.grow{flex:1}
+.err{color:#ff8d80;min-height:20px;font-size:14px;text-align:center}
+.foot{text-align:center;color:#7d6a52;font-size:13px;margin-top:24px}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:8px;padding:6px 2px}
+.top .t{font-weight:900;font-size:18px;letter-spacing:1px}
+.top .code{background:#120d09;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-weight:800;letter-spacing:2px;color:var(--gold)}
+.banner{border-radius:14px;padding:12px 14px;text-align:center;font-weight:800;font-size:17px;
+  background:#2a1f15;border:1px solid var(--line);margin:6px 0 10px;line-height:1.4}
+.banner.me{background:linear-gradient(180deg,#5a4214,#3a2a0c);border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,185,74,.25),0 0 20px rgba(232,185,74,.2);animation:glow 1.6s infinite}
+.banner.bad{background:linear-gradient(180deg,#5c1c16,#3a100c);border-color:#d9483b}
+.banner.good{background:linear-gradient(180deg,#22471f,#142c12);border-color:#5cb85c}
+@keyframes glow{50%{box-shadow:0 0 0 2px rgba(232,185,74,.5),0 0 28px rgba(232,185,74,.35)}}
+.bidinfo{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:#120d09;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;color:var(--dim)}
+.chip b{color:var(--ink)}
+.chip.hot{border-color:var(--gold);color:var(--gold)}
+.chip.hot b{color:var(--gold);font-size:17px}
+
+/* mats */
+.mats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mat{position:relative;background:#1f1710;border:2px solid var(--line);border-radius:16px;padding:8px;text-align:center;transition:transform .15s}
+.mat.turn{border-color:var(--gold);box-shadow:0 0 16px rgba(232,185,74,.35)}
+.mat.dead{opacity:.38;filter:grayscale(.8)}
+.mat.pickable{cursor:pointer;border-color:#f6d98c;animation:pick 1s infinite}
+.mat.pickable:active{transform:scale(.96)}
+@keyframes pick{50%{box-shadow:0 0 0 4px rgba(246,217,140,.45)}}
+.mhead{display:flex;align-items:center;gap:5px;justify-content:center;font-weight:800;font-size:15px;min-height:22px}
+.dot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid rgba(0,0,0,.4)}
+.stars{color:var(--gold);font-size:13px;letter-spacing:1px}
+.badges{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;min-height:20px;margin:3px 0}
+.bdg{font-size:11px;padding:2px 7px;border-radius:999px;background:#3a2b1d;color:var(--dim);font-weight:700}
+.bdg.y{background:var(--gold);color:#2a1a06}
+.bdg.r{background:#8e2a22;color:#ffd7d2}
+.bdg.g{background:#2d5a2a;color:#d6f5d2}
+.circle{position:relative;width:118px;height:118px;margin:4px auto;border-radius:50%;
+  display:flex;align-items:center;justify-content:center}
+.circle.side0{background:radial-gradient(circle,#3a2d22 0 55%,#2a2018 56% 100%);box-shadow:inset 0 0 0 4px #4a3a2c,inset 0 0 18px #000}
+.circle.side1{background:radial-gradient(circle,#6b4f16 0 55%,#4b360c 56% 100%);box-shadow:inset 0 0 0 4px var(--gold),0 0 18px rgba(232,185,74,.4)}
+.circle::before{content:"";position:absolute;inset:9px;border-radius:50%;border:2px dashed rgba(255,255,255,.10)}
+.stack{position:relative;width:64px;height:64px}
+.stack .disc{position:absolute;left:0}
+.count{position:absolute;right:-4px;bottom:-4px;background:#120d09;border:2px solid var(--gold);color:var(--gold);
+  border-radius:999px;min-width:28px;height:28px;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;padding:0 5px;z-index:30}
+.revealed{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;min-height:30px;margin-top:2px}
+.owned{font-size:12px;color:var(--dim);margin-top:2px}
+.owned i{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 1px;vertical-align:middle}
+.empty{color:#6d5b46;font-size:12px}
+
+.disc{display:block;border-radius:50%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.disc svg{display:block;width:100%;height:100%}
+.flipin{animation:flipin .7s ease-out both}
+@keyframes flipin{0%{transform:perspective(300px) rotateY(180deg) scale(1.25)}60%{transform:perspective(300px) rotateY(-10deg) scale(1.15)}100%{transform:none}}
+.shake{animation:shake .5s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+
+/* my area */
+.me{margin-top:12px;background:linear-gradient(180deg,#2c2118,#1d150e);border:2px solid var(--line);border-radius:18px;padding:12px}
+.me.turn{border-color:var(--gold)}
+.mewrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.mymat{text-align:center;min-width:150px}
+.mystack{display:flex;flex-direction:column-reverse;align-items:center;gap:2px;margin-top:4px}
+.mystack .lbl{font-size:11px;color:var(--dim)}
+.actions{flex:1;min-width:240px;display:flex;flex-direction:column;gap:10px}
+.hint{color:var(--dim);font-size:14px;text-align:center}
+.hand{display:flex;gap:14px;justify-content:center}
+.handbtn{display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;padding:4px;border-radius:14px}
+.handbtn .disc{width:74px;height:74px}
+.handbtn span{font-weight:800;font-size:14px}
+.handbtn:disabled{opacity:.3}
+.handbtn:not(:disabled):active .disc{transform:translateY(-6px) scale(1.05)}
+.stepper{display:flex;align-items:center;justify-content:center;gap:10px}
+.stepper .v{font-size:38px;font-weight:900;min-width:64px;text-align:center;color:var(--gold)}
+.stepper .btn{width:48px;height:48px;font-size:24px;padding:0}
+.picks{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.picks button{background:transparent;padding:0}
+.picks .disc{width:64px;height:64px}
+.picks button:active .disc{transform:scale(.92)}
+
+details.log{margin-top:12px;background:#1d150e;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+details.log summary{cursor:pointer;color:var(--dim);font-weight:700}
+.loglist{max-height:220px;overflow:auto;font-size:14px;line-height:1.6;margin-top:6px}
+.loglist div{border-bottom:1px dashed #3a2b1d;padding:2px 0}
+
+/* lobby */
+.bigcode{font-size:54px;font-weight:900;letter-spacing:10px;color:var(--gold);text-align:center;margin:4px 0;text-shadow:0 3px 0 #000}
+.plist{display:flex;flex-direction:column;gap:8px}
+.pitem{display:flex;align-items:center;gap:10px;background:#1f1710;border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.pitem .disc{width:36px;height:36px}
+.pitem .nm{font-weight:800;flex:1}
+.off{color:#ff8d80;font-size:12px}
+.colors{display:flex;gap:6px;flex-wrap:wrap}
+.colors button{width:30px;height:30px;border-radius:50%;border:3px solid transparent}
+.colors button.on{border-color:#fff}
+.colors button:disabled{opacity:.2}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:14px}
+.modal .card{max-width:560px;width:100%;max-height:86vh;overflow:auto;margin:0}
+.modal h3{margin:4px 0 10px;color:var(--gold)}
+.modal li{margin:6px 0;line-height:1.55}
+.result-big{text-align:center;font-size:22px;font-weight:900;margin:4px 0}
+
+/* winner overlay */
+.win{text-align:center;padding:10px}
+.win .disc{width:110px;height:110px;margin:0 auto 8px}
+.win h2{font-size:30px;margin:6px 0;color:var(--gold)}
+
+/* board (전자칠판) */
+body.board #app{max-width:none;padding:18px 28px}
+.board .top .t{font-size:30px}
+.board .top .code{font-size:28px;padding:4px 14px}
+.board .banner{font-size:34px;padding:18px}
+.board .chip{font-size:24px;padding:8px 20px}
+.board .chip.hot b{font-size:34px}
+.board .mats{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.board .mat{padding:14px;border-radius:22px}
+.board .mhead{font-size:28px;min-height:36px}
+.board .dot{width:20px;height:20px}
+.board .stars{font-size:24px}
+.board .bdg{font-size:18px;padding:3px 12px}
+.board .circle{width:200px;height:200px}
+.board .stack{width:108px;height:108px}
+.board .count{min-width:44px;height:44px;font-size:24px}
+.board .owned{font-size:20px}
+.board .owned i{width:15px;height:15px}
+.board .revealed .disc{width:48px!important;height:48px!important}
+.boardgrid{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
+.board .loglist{font-size:20px;max-height:60vh}
+.board .bigcode{font-size:120px}
+.board .pitem{font-size:26px}
+.board .pitem .disc{width:56px;height:56px}
+@media (max-width:900px){.boardgrid{grid-template-columns:1fr}}
+@media (max-width:420px){
+  .mats{grid-template-columns:repeat(2,1fr);gap:8px}
+  .circle{width:104px;height:104px}
+  .stack{width:56px;height:56px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- ============ 게임 로직 (순수 함수) ============ -->
+<script id="logic">
+const SK = (() => {
+  const MINP = 3, MAXP = 6, WIN_POINTS = 2;
+  function arr(x){
+    if(!x) return [];
+    if(Array.isArray(x)) return x.filter(v => v !== undefined && v !== null);
+    return Object.keys(x).sort((a,b)=>a-b).map(k=>x[k]).filter(v => v !== undefined && v !== null);
+  }
+  function norm(g){
+    if(!g) return null;
+    g.order = arr(g.order);
+    g.names = g.names || {}; g.colors = g.colors || {};
+    g.owned = g.owned || {}; g.alive = g.alive || {}; g.points = g.points || {};
+    const st = {};
+    g.order.forEach(p => { st[p] = arr(g.stacks && g.stacks[p]); });
+    g.stacks = st;
+    g.flips = g.flips || {}; g.passed = g.passed || {};
+    g.revealed = arr(g.revealed); g.log = arr(g.log);
+    if(g.penalty) g.penalty.options = arr(g.penalty.options);
+    g.order.forEach(p => {
+      const o = g.owned[p] || {}; g.owned[p] = { r: o.r || 0, s: o.s || 0 };
+      g.points[p] = g.points[p] || 0; g.flips[p] = g.flips[p] || 0;
+      g.alive[p] = !!g.alive[p]; g.colors[p] = g.colors[p] || 0;
+    });
+    g.bid = g.bid || 0; g.roses = g.roses || 0; g.ownDone = !!g.ownDone;
+    return g;
+  }
+  const clone = o => JSON.parse(JSON.stringify(o));
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function addLog(g, t){ g.log.push(t); if(g.log.length > 40) g.log = g.log.slice(-40); g.seq = (g.seq||0) + 1; }
+  const alive = g => g.order.filter(p => g.alive[p]);
+  const ownedCount = (g,p) => g.owned[p].r + g.owned[p].s;
+  function hand(g,p){
+    const s = g.stacks[p] || [];
+    return { r: Math.max(0, g.owned[p].r - s.filter(d=>d==='r').length), s: Math.max(0, g.owned[p].s - s.filter(d=>d==='s').length) };
+  }
+  const total = g => alive(g).reduce((a,p) => a + g.stacks[p].length, 0);
+  function nextFrom(g, p, ok){
+    const n = g.order.length, i = g.order.indexOf(p);
+    for(let k=1;k<=n;k++){ const q = g.order[(i+k)%n]; if(g.alive[q] && ok(q)) return q; }
+    return null;
+  }
+  const N = (g,p) => (g.names[p] || '?');
+
+  function newGame(players){
+    const g = { order: players.map(p=>p.id), names:{}, colors:{}, owned:{}, alive:{}, points:{},
+      round:1, starter:null, phase:'place', current:null, stacks:{}, bid:0, bidder:null, passed:{},
+      challenger:null, flips:{}, ownDone:false, revealed:[], roses:0, skullOwner:null, penalty:null,
+      result:null, lost:null, winner:null, log:[], seq:0 };
+    players.forEach(p => { g.names[p.id]=p.name; g.colors[p.id]=p.color||0; g.owned[p.id]={r:3,s:1}; g.alive[p.id]=true; g.points[p.id]=0; g.stacks[p.id]=[]; });
+    g.starter = g.order[Math.floor(Math.random()*g.order.length)];
+    addLog(g, `1라운드 시작! 모두 원판 1장을 몰래 내려놓으세요. (선: ${N(g,g.starter)})`);
+    return g;
+  }
+
+  function startReveal(g){
+    g.phase='reveal'; g.challenger=g.bidder; g.current=g.bidder;
+    g.flips={}; g.order.forEach(p=>g.flips[p]=0); g.ownDone=false; g.revealed=[]; g.roses=0;
+    addLog(g, `⚔️ ${N(g,g.bidder)}님이 ${g.bid}장 뒤집기에 도전합니다!`);
+  }
+  function success(g){
+    const c = g.challenger; g.points[c]++; g.current=null;
+    if(g.points[c] >= WIN_POINTS){ g.phase='over'; g.winner=c; g.result={type:'win2'}; addLog(g, `🏆 ${N(g,c)}님 두 번째 도전 성공! 승리!`); return; }
+    g.phase='result'; g.result={type:'success', next:c};
+    addLog(g, `✨ ${N(g,c)}님 도전 성공! 매트를 뒤집습니다.`);
+  }
+  function fail(g, owner){
+    const c = g.challenger, self = owner === c; g.skullOwner = owner;
+    const opts = [];
+    for(let i=0;i<g.owned[c].r;i++) opts.push('r');
+    for(let i=0;i<g.owned[c].s;i++) opts.push('s');
+    shuffle(opts);
+    g.phase='penalty'; g.penalty={ chooser: self ? c : owner, self, options: opts }; g.current = g.penalty.chooser;
+  }
+
+  const H = {
+    place(g,p,a){
+      if(!g.alive[p]) return false;
+      const d = a.d; if(d!=='r' && d!=='s') return false;
+      if(hand(g,p)[d] <= 0) return false;
+      if(g.phase==='place'){
+        if(g.stacks[p].length > 0) return false;
+        g.stacks[p].push(d);
+        if(alive(g).every(q => g.stacks[q].length > 0)){
+          g.phase='turn'; g.current=g.starter;
+          addLog(g, `모두 내려놓았어요. ${N(g,g.starter)}님부터 시작!`);
+        } else g.seq=(g.seq||0)+1;
+        return true;
+      }
+      if(g.phase==='turn'){
+        if(g.current!==p) return false;
+        g.stacks[p].push(d);
+        addLog(g, `${N(g,p)}님이 원판을 1장 더 올렸어요.`);
+        g.current = nextFrom(g,p,()=>true);
+        return true;
+      }
+      return false;
+    },
+    bid(g,p,a){
+      const n = a.n|0, T = total(g);
+      if(g.current!==p || !g.alive[p]) return false;
+      if(g.phase==='turn'){ if(n<1 || n>T) return false; g.phase='bid'; g.passed={}; }
+      else if(g.phase==='bid'){ if(n<=g.bid || n>T || g.passed[p]) return false; }
+      else return false;
+      g.bid=n; g.bidder=p;
+      addLog(g, `📣 ${N(g,p)}님: "${n}장 뒤집겠다!"`);
+      if(n===T){ startReveal(g); return true; }
+      g.current = nextFrom(g,p,q=>!g.passed[q]);
+      return true;
+    },
+    pass(g,p){
+      if(g.phase!=='bid' || g.current!==p || p===g.bidder) return false;
+      g.passed[p]=true; addLog(g, `${N(g,p)}님 패스`);
+      const rest = alive(g).filter(q=>!g.passed[q]);
+      if(rest.length===1){ startReveal(g); return true; }
+      g.current = nextFrom(g,p,q=>!g.passed[q]);
+      return true;
+    },
+    flipOwn(g,p){
+      if(g.phase!=='reveal' || p!==g.challenger || g.ownDone) return false;
+      const s = g.stacks[p]; g.ownDone = true;
+      for(let i=s.length-1;i>=0;i--){
+        const d = s[i]; g.flips[p]++; g.revealed.push({o:p,d});
+        if(d==='s'){ addLog(g, `💀 ${N(g,p)}님 자기 더미에서 해골이 나왔어요! 도전 실패`); fail(g,p); return true; }
+        g.roses++;
+      }
+      addLog(g, `🌹 ${N(g,p)}님 자기 원판 ${s.length}장 모두 장미! (${Math.min(g.roses,g.bid)}/${g.bid})`);
+      if(g.roses >= g.bid) success(g);
+      return true;
+    },
+    flip(g,p,a){
+      if(g.phase!=='reveal' || p!==g.challenger || !g.ownDone) return false;
+      const t = a.t; if(t===p || !g.alive[t]) return false;
+      const s = g.stacks[t], f = g.flips[t]||0;
+      if(f >= s.length) return false;
+      const d = s[s.length-1-f]; g.flips[t] = f+1; g.revealed.push({o:t,d});
+      if(d==='s'){ addLog(g, `💀 ${N(g,t)}님의 해골! 도전 실패`); fail(g,t); return true; }
+      g.roses++; addLog(g, `🌹 ${N(g,t)}님의 장미 (${g.roses}/${g.bid})`);
+      if(g.roses >= g.bid) success(g);
+      return true;
+    },
+    penalty(g,p,a){
+      if(g.phase!=='penalty' || !g.penalty || p!==g.penalty.chooser) return false;
+      const c = g.challenger; let d;
+      if(g.penalty.self){ d=a.d; if(d!=='r' && d!=='s') return false; if(g.owned[c][d] <= 0) return false; }
+      else { const i=a.i|0; if(i<0 || i>=g.penalty.options.length) return false; d=g.penalty.options[i]; }
+      g.owned[c][d]--; g.lost = {p:c, d};
+      addLog(g, `${N(g,c)}님이 원판 1장을 잃었어요. (남은 원판 ${ownedCount(g,c)}장)`);
+      if(ownedCount(g,c)===0){ g.alive[c]=false; addLog(g, `☠️ ${N(g,c)}님 탈락!`); }
+      const al = alive(g);
+      if(al.length===1){ g.phase='over'; g.winner=al[0]; g.current=null; g.result={type:'last'}; addLog(g, `🏆 ${N(g,al[0])}님 최후의 생존자! 승리!`); return true; }
+      if(g.penalty.self){ g.phase='chooseStart'; g.current=c; addLog(g, `${N(g,c)}님이 다음 라운드 시작할 사람을 고릅니다.`); return true; }
+      g.phase='result'; g.current=null; g.result={type:'fail', next:g.skullOwner};
+      return true;
+    },
+    chooseStart(g,p,a){
+      if(g.phase!=='chooseStart' || p!==g.challenger) return false;
+      if(!g.order.includes(a.t) || !g.alive[a.t]) return false;
+      g.phase='result'; g.current=null; g.result={type:'fail', next:a.t};
+      addLog(g, `${N(g,p)}님이 ${N(g,a.t)}님을 다음 라운드 선으로 골랐어요.`);
+      return true;
+    },
+    nextRound(g,p){
+      if(g.phase!=='result' || !g.order.includes(p)) return false;
+      const nx = g.result && g.result.next;
+      g.round++; g.starter = (nx && g.alive[nx]) ? nx : alive(g)[0];
+      g.phase='place'; g.current=null;
+      g.order.forEach(q => { g.stacks[q]=[]; g.flips[q]=0; });
+      g.bid=0; g.bidder=null; g.passed={}; g.challenger=null; g.ownDone=false; g.revealed=[]; g.roses=0;
+      g.skullOwner=null; g.penalty=null; g.result=null; g.lost=null;
+      addLog(g, `── ${g.round}라운드 시작! (선: ${N(g,g.starter)}) ──`);
+      return true;
+    }
+  };
+
+  function act(g0, pid, a){
+    if(!g0 || !a || !H[a.type]) return null;
+    const g = norm(clone(g0));
+    const ok = H[a.type](g, pid, a);
+    return ok === false ? null : clone(g);
+  }
+  return { MINP, MAXP, WIN_POINTS, norm, newGame, act, hand, total, alive, ownedCount, arr };
+})();
+if(typeof module !== 'undefined') module.exports = SK;
+</script>
+
+<!-- ============ 화면 / Firebase ============ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBaCGL9HFO1bHYl4XHpBq6lpvstYhcm5EQ",
+  authDomain: "forsale-e1be8.firebaseapp.com",
+  databaseURL: "https://forsale-e1be8-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "forsale-e1be8",
+  storageBucket: "forsale-e1be8.firebasestorage.app",
+  messagingSenderId: "844634125485",
+  appId: "1:844634125485:web:a24abe2cf51b4b2f950224"
+};
+const DB_ROOT = 'skull';   // Firebase 규칙의 "skull" 노드
+const COLORS = [
+  {n:'주황', base:'#d9772b', light:'#f6c38a', dark:'#6e3410'},
+  {n:'청록', base:'#2a9d8f', light:'#a6e6dc', dark:'#0f4a44'},
+  {n:'보라', base:'#8a5cc4', light:'#d6c2f4', dark:'#3f2366'},
+  {n:'빨강', base:'#c8443a', light:'#f5aea6', dark:'#651510'},
+  {n:'파랑', base:'#3c74c4', light:'#b0cdf4', dark:'#153664'},
+  {n:'초록', base:'#5f9a32', light:'#c9e8a8', dark:'#2a4a12'},
+];
+
+let db = null;
+try {
+  const cfg = Object.fromEntries(Object.entries(FIREBASE_CONFIG).filter(([k,v]) => v));
+  firebase.initializeApp(cfg); db = firebase.database();
+} catch(e){ console.error(e); }
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function getPid(){ let p = localStorage.getItem('skull_pid'); if(!p){ p = 'p' + Math.random().toString(36).slice(2,10); localStorage.setItem('skull_pid', p); } return p; }
+
+const S = { pid:getPid(), name:localStorage.getItem('skull_name')||'', code:null, ref:null, room:undefined, board:false, err:'' };
+const ui = { bidVal:1, seen:new Set(), rules:false, lastTurnKey:'', lastPhaseKey:'', logOpen:false };
+
+/* ---------- 원판 그림 (오리지널) ---------- */
+function discSVG(kind, ci){
+  const c = COLORS[ci||0] || COLORS[0];
+  if(kind==='back') return `<svg viewBox="-50 -50 100 100">
+    <circle r="48" fill="${c.base}" stroke="#140d07" stroke-width="3"/>
+    <circle r="41" fill="none" stroke="${c.light}" stroke-width="3" stroke-dasharray="5 4"/>
+    <circle r="31" fill="${c.dark}"/>
+    <g fill="none" stroke="${c.light}" stroke-width="3" stroke-linejoin="round">
+      <path d="M0,-21 L18,10 L-18,10 Z"/><path d="M0,21 L-18,-10 L18,-10 Z" opacity=".55"/>
+    </g>
+    <circle r="5" fill="${c.light}"/></svg>`;
+  if(kind==='r') return `<svg viewBox="-50 -50 100 100">
+    <circle r="48" fill="#efe2c2" stroke="${c.base}" stroke-width="7"/>
+    <circle r="48" fill="none" stroke="#140d07" stroke-width="1.5"/>
+    <ellipse cx="-17" cy="16" rx="13" ry="6" fill="#4f8a3a" transform="rotate(-35 -17 16)"/>
+    <ellipse cx="17" cy="16" rx="13" ry="6" fill="#3f7a2e" transform="rotate(35 17 16)"/>
+    <circle cx="0" cy="-3" r="21" fill="#b8232f"/>
+    <path d="M-19,-6 Q-14,-22 0,-24 Q14,-22 19,-6" fill="#d23a45"/>
+    <g fill="none" stroke="#6d0c15" stroke-width="2.6" stroke-linecap="round">
+      <path d="M0,-3 m-3,0 a3,3 0 1 1 6,0 a6,6 0 1 1 -12,0 a9,9 0 1 1 18,1 a13,13 0 0 1 -24,6"/>
+    </g></svg>`;
+  return `<svg viewBox="-50 -50 100 100">
+    <circle r="48" fill="#241a12" stroke="${c.base}" stroke-width="7"/>
+    <circle r="48" fill="none" stroke="#140d07" stroke-width="1.5"/>
+    <circle cx="0" cy="-7" r="23" fill="#efe6d2"/>
+    <rect x="-13" y="6" width="26" height="18" rx="5" fill="#efe6d2"/>
+    <ellipse cx="-9" cy="-6" rx="7" ry="8" fill="#241a12"/>
+    <ellipse cx="9" cy="-6" rx="7" ry="8" fill="#241a12"/>
+    <path d="M0,4 L-4,11 L4,11 Z" fill="#241a12"/>
+    <g stroke="#241a12" stroke-width="2.2"><line x1="-6" y1="16" x2="-6" y2="24"/><line x1="0" y1="16" x2="0" y2="24"/><line x1="6" y1="16" x2="6" y2="24"/></g>
+  </svg>`;
+}
+const disc = (kind, ci, size, cls='', style='') => `<span class="disc ${cls}" style="width:${size}px;height:${size}px;${style}">${discSVG(kind,ci)}</span>`;
+
+/* ---------- Firebase 연결 ---------- */
+function roomRef(code){ return db.ref(DB_ROOT + '/' + code); }
+function genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
+
+function enter(code, board){
+  if(S.ref) S.ref.off();
+  S.code = code; S.board = board; S.room = undefined; S.ref = roomRef(code);
+  document.body.classList.toggle('board', !!board);
+  S.ref.on('value', snap => { S.room = snap.val(); render(); });
+  const q = '?room=' + code + (board ? '&board=1' : '');
+  try { history.replaceState(null, '', location.pathname + q); } catch(e){}
+  render();
+}
+function presence(code){
+  const r = roomRef(code).child('players/' + S.pid + '/online');
+  db.ref('.info/connected').on('value', s => { if(s.val()===true){ r.onDisconnect().set(false); r.set(true); } });
+}
+function setErr(t){ S.err = t; render(); }
+
+async function createRoom(){
+  const name = ($('#nm')||{}).value?.trim() || S.name;
+  if(!name) return setErr('이름을 입력하세요.');
+  if(!db) return setErr('Firebase 연결에 실패했어요.');
+  S.name = name; localStorage.setItem('skull_name', name);
+  let code = genCode();
+  for(let i=0;i<6;i++){ const s = await roomRef(code).get(); if(!s.exists()) break; code = genCode(); }
+  await roomRef(code).set({ meta:{ host:S.pid, status:'lobby', created:Date.now() },
+    players:{ [S.pid]:{ name, color:0, joined:Date.now(), online:true } } });
+  presence(code); enter(code, false);
+}
+async function joinRoom(codeIn, asBoard){
+  const code = (codeIn||'').trim().toUpperCase();
+  if(code.length!==4) return setErr('방 코드 4자리를 입력하세요.');
+  if(!db) return setErr('Firebase 연결에 실패했어요.');
+  const s = await roomRef(code).get();
+  if(!s.exists()) return setErr('그런 방이 없어요.');
+  if(asBoard){ enter(code, true); return; }
+  const name = ($('#nm')||{}).value?.trim() || S.name;
+  if(!name) return setErr('이름을 입력하세요.');
+  S.name = name; localStorage.setItem('skull_name', name);
+  const room = s.val();
+  const inGame = room.game && SK.arr(room.game.order).includes(S.pid);
+  if(room.meta && room.meta.status!=='lobby' && !inGame){
+    S.err=''; enter(code, true); return; // 관전
+  }
+  let full = false;
+  await roomRef(code).child('players').transaction(ps => {
+    ps = ps || {};
+    if(ps[S.pid]){ ps[S.pid].online = true; if(!inGame) ps[S.pid].name = name; return ps; }
+    if(Object.keys(ps).length >= SK.MAXP){ full = true; return; }
+    full = false;
+    const used = Object.values(ps).map(p=>p.color);
+    let col = 0; while(used.includes(col) && col < COLORS.length-1) col++;
+    ps[S.pid] = { name, color:col, joined:Date.now(), online:true };
+    return ps;
+  });
+  if(full) return setErr('방이 가득 찼어요. (최대 6명)');
+  S.err=''; presence(code); enter(code, false);
+}
+function leave(){
+  if(S.ref){
+    if(S.room && S.room.meta && S.room.meta.status==='lobby' && !S.board) S.ref.child('players/'+S.pid).remove();
+    S.ref.off();
+  }
+  S.code=null; S.ref=null; S.room=undefined; S.board=false; document.body.classList.remove('board');
+  try { history.replaceState(null,'',location.pathname); } catch(e){}
+  render();
+}
+function act(a){
+  if(!S.ref) return;
+  S.ref.child('game').transaction(g => {
+    if(!g) return;
+    const r = SK.act(g, S.pid, a);
+    return r === null ? undefined : r;
+  });
+}
+const isHost = () => S.room && S.room.meta && S.room.meta.host === S.pid;
+function sortedPlayers(){
+  const ps = (S.room && S.room.players) || {};
+  return Object.entries(ps).map(([id,p])=>({id, ...p})).sort((a,b)=>(a.joined||0)-(b.joined||0));
+}
+function startGame(){
+  const ps = sortedPlayers();
+  if(ps.length < SK.MINP || ps.length > SK.MAXP) return;
+  const g = SK.newGame(ps.map(p=>({id:p.id, name:p.name, color:p.color})));
+  ui.seen.clear();
+  S.ref.update({ game:g, 'meta/status':'playing' });
+}
+function restartGame(){
+  const g0 = SK.norm(JSON.parse(JSON.stringify(S.room.game)));
+  const g = SK.newGame(g0.order.map(id=>({id, name:g0.names[id], color:g0.colors[id]})));
+  ui.seen.clear();
+  S.ref.update({ game:g, 'meta/status':'playing' });
+}
+function toLobby(){ S.ref.update({ game:null, 'meta/status':'lobby' }); }
+
+/* ---------- 화면 그리기 ---------- */
+function statusText(g){
+  const N = p => esc(g.names[p]||'?');
+  const me = S.pid;
+  switch(g.phase){
+    case 'place': {
+      const al = SK.alive(g), done = al.filter(p=>g.stacks[p].length>0).length;
+      if(al.includes(me) && g.stacks[me].length===0) return {t:'원판 1장을 골라 몰래 내려놓으세요', me:true};
+      return {t:`모두 원판 1장을 몰래 내려놓는 중… (${done}/${al.length})`};
+    }
+    case 'turn': return g.current===me ? {t:'내 차례! 원판을 더 올리거나 도전하세요', me:true} : {t:`${N(g.current)}님 차례 — 원판을 더 올리거나 도전!`};
+    case 'bid': return g.current===me ? {t:`내 차례! ${g.bid}장보다 높게 부르거나 패스`, me:true} : {t:`${N(g.current)}님 차례 — ${g.bid}장보다 높게 부를까, 패스할까?`};
+    case 'reveal': return g.challenger===me
+      ? {t: g.ownDone ? `상대 더미를 눌러 뒤집으세요! 🌹 ${g.roses}/${g.bid}` : '먼저 내 원판을 모두 뒤집어야 해요', me:true}
+      : {t:`${N(g.challenger)}님 도전 중… 🌹 ${g.roses}/${g.bid}`};
+    case 'penalty':
+      if(g.penalty.self) return {t: g.challenger===me ? '💀 내 해골을 뒤집었어요! 버릴 원판을 직접 고르세요' : `💀 ${N(g.challenger)}님이 자기 해골을 뒤집었어요! 버릴 원판을 고르는 중`, bad:true, me:g.penalty.chooser===me};
+      if(g.penalty.chooser===me) return {t:`💀 내 해골 적중! ${N(g.challenger)}님의 원판 1장을 골라 버리세요`, bad:true, me:true};
+      return {t:`💀 ${N(g.skullOwner)}님의 해골! ${N(g.penalty.chooser)}님이 ${N(g.challenger)}님의 원판 1장을 골라 버리는 중`, bad:true, me:g.penalty.chooser===me};
+    case 'chooseStart': return {t:`${N(g.challenger)}님이 다음 라운드를 시작할 사람을 고르는 중`, me:g.challenger===me};
+    case 'result':
+      if(g.result.type==='success') return {t:`✨ ${N(g.challenger)}님 도전 성공! (★ ${g.points[g.challenger]}/${SK.WIN_POINTS})`, good:true};
+      return {t:`💀 도전 실패 — 다음 라운드는 ${N(g.result.next)}님부터`, bad:true};
+    case 'over': return {t:`🏆 ${N(g.winner)}님 승리!`, good:true};
+  }
+  return {t:''};
+}
+function revIndexMap(g){
+  const m = {}; g.revealed.forEach((r,i) => { (m[r.o] = m[r.o] || []).push(i); }); return m;
+}
+function revKey(g,i){ return g.round + '-' + i; }
+
+function matHTML(g, p, opts={}){
+  const big = S.board, ci = g.colors[p], s = g.stacks[p], f = g.flips[p]||0;
+  const unflipped = s.length - f;
+  const turn = g.current===p && !['result','over','place'].includes(g.phase);
+  const pickable = g.phase==='reveal' && g.challenger===S.pid && g.ownDone && p!==S.pid && g.alive[p] && unflipped>0 && !S.board;
+  const badges = [];
+  if(!g.alive[p]) badges.push('<span class="bdg r">탈락</span>');
+  if(g.starter===p && g.alive[p] && ['place','turn'].includes(g.phase)) badges.push('<span class="bdg">선</span>');
+  if(turn) badges.push('<span class="bdg y">차례</span>');
+  if(g.phase==='bid' && g.bidder===p) badges.push(`<span class="bdg y">${g.bid}장!</span>`);
+  if(g.phase==='bid' && g.passed[p]) badges.push('<span class="bdg">패스</span>');
+  if(['reveal','penalty','chooseStart','result'].includes(g.phase) && g.challenger===p) badges.push('<span class="bdg y">도전자</span>');
+  if(g.phase==='place' && g.alive[p]) badges.push(s.length ? '<span class="bdg g">놓음</span>' : '<span class="bdg">고르는 중</span>');
+  if(g.winner===p) badges.push('<span class="bdg y">승리</span>');
+  const ds = big ? 108 : 60, off = big ? 6 : 4;
+  let stack = '';
+  const n = Math.min(unflipped, 8);
+  for(let i=0;i<n;i++) stack += disc('back', ci, ds, '', `top:${-i*off+ (n-1)*off/2}px;z-index:${i}`);
+  const rm = revIndexMap(g)[p] || [];
+  const revs = rm.map(i => {
+    const k = revKey(g,i), isNew = !ui.seen.has(k);
+    return disc(g.revealed[i].d, ci, big?48:30, isNew?'flipin':'');
+  }).join('');
+  const own = g.owned[p], cnt = own.r + own.s;
+  const dots = Array.from({length:cnt}, () => `<i style="background:${COLORS[ci].base}"></i>`).join('') +
+               Array.from({length:4-cnt}, () => `<i style="background:#3a2d22"></i>`).join('');
+  const stars = '★'.repeat(g.points[p]) + '☆'.repeat(SK.WIN_POINTS - g.points[p]);
+  return `<div class="mat ${turn?'turn':''} ${g.alive[p]?'':'dead'} ${pickable?'pickable':''}" ${pickable?`data-a="flip" data-t="${p}"`:''}>
+    <div class="mhead"><span class="dot" style="background:${COLORS[ci].base}"></span>${esc(g.names[p])}${p===S.pid&&!S.board?' (나)':''} <span class="stars">${stars}</span></div>
+    <div class="badges">${badges.join('')}</div>
+    <div class="circle side${g.points[p]>0?1:0}">
+      ${unflipped>0 ? `<div class="stack">${stack}<span class="count">${unflipped}</span></div>` : `<span class="empty">${s.length? '' : '비어 있음'}</span>`}
+    </div>
+    <div class="revealed">${revs}</div>
+    <div class="owned">보유 ${dots}</div>
+  </div>`;
+}
+
+function myAreaHTML(g){
+  const me = S.pid, ci = g.colors[me], h = SK.hand(g, me), s = g.stacks[me], T = SK.total(g);
+  const amAlive = g.alive[me];
+  const handBtns = (enabled, label) => `<div class="hint">${label}</div><div class="hand">
+      <button class="handbtn" data-a="place" data-d="r" ${enabled && h.r>0?'':'disabled'}>${disc('r',ci,74)}<span>장미 ×${h.r}</span></button>
+      <button class="handbtn" data-a="place" data-d="s" ${enabled && h.s>0?'':'disabled'}>${disc('s',ci,74)}<span>해골 ×${h.s}</span></button>
+    </div>`;
+  const stepper = (min, max, label, cls) => {
+    ui.bidVal = Math.max(min, Math.min(max, ui.bidVal||min));
+    return `<div class="stepper"><button class="btn" data-a="bv" data-v="-1" ${ui.bidVal<=min?'disabled':''}>−</button>
+      <div class="v">${ui.bidVal}</div><button class="btn" data-a="bv" data-v="1" ${ui.bidVal>=max?'disabled':''}>+</button></div>
+      <div class="row c"><button class="btn ${cls}" data-a="bid">${label} (${ui.bidVal}장)</button></div>`;
+  };
+  let act = '';
+  const N = p => esc(g.names[p]||'?');
+  if(!amAlive && !['over'].includes(g.phase)){
+    act = `<div class="hint">탈락했어요. 끝까지 지켜보며 응원해 주세요! ☠️</div>`;
+    if(g.phase==='chooseStart' && g.challenger===me) act += chooseStartHTML(g);
+    if(g.phase==='result') act += `<div class="row c"><button class="btn gold" data-a="next">다음 라운드 ▶</button></div>`;
+  } else switch(g.phase){
+    case 'place':
+      act = s.length===0 ? handBtns(true, '원판 1장을 눌러 내려놓으세요 (다른 사람에게는 뒷면만 보여요)')
+                         : `<div class="hint">내려놓았어요. 다른 사람을 기다리는 중…</div>`;
+      break;
+    case 'turn':
+      if(g.current===me){
+        act = (h.r+h.s>0) ? handBtns(true, '원판을 1장 더 올리거나…') : `<div class="hint">손에 원판이 없어서 도전해야 해요!</div>`;
+        act += `<div class="hint">…몇 장을 뒤집을지 불러 도전하세요 (최대 ${T}장)</div>` + stepper(1, T, '⚔️ 도전하기', 'gold');
+      } else act = `<div class="hint">${N(g.current)}님의 차례예요.</div>`;
+      break;
+    case 'bid':
+      if(g.current===me){
+        act = `<div class="hint">현재 ${N(g.bidder)}님이 ${g.bid}장을 불렀어요.</div>`;
+        if(g.bid < T) act += stepper(g.bid+1, T, '📣 올리기', 'gold');
+        act += `<div class="row c"><button class="btn red" data-a="pass">패스 (이번 도전에서 빠지기)</button></div>`;
+      } else act = `<div class="hint">${g.passed[me] ? '패스했어요. ' : ''}${N(g.current)}님이 고민 중…</div>`;
+      break;
+    case 'reveal':
+      if(g.challenger===me){
+        act = !g.ownDone
+          ? `<div class="hint">규칙: 내 더미의 원판부터 모두 뒤집어야 해요.</div><div class="row c"><button class="btn gold" data-a="flipOwn">내 원판 모두 뒤집기</button></div>`
+          : `<div class="hint">빛나는 상대 더미를 눌러 맨 위 원판을 뒤집으세요.<br>🌹 ${g.roses} / ${g.bid}</div>`;
+      } else act = `<div class="hint">${N(g.challenger)}님이 ${g.bid}장 뒤집기에 도전 중! 🌹 ${g.roses}/${g.bid}</div>`;
+      break;
+    case 'penalty': {
+      const pen = g.penalty, c = g.challenger;
+      if(pen.chooser===me && pen.self){
+        const o = g.owned[me];
+        act = `<div class="hint">내 해골을 뒤집었어요. 버릴 원판을 직접 고르세요.</div><div class="picks">
+          ${o.r>0?`<button data-a="pen" data-d="r">${disc('r',ci,64)}</button>`:''}
+          ${o.s>0?`<button data-a="pen" data-d="s">${disc('s',ci,64)}</button>`:''}</div>`;
+      } else if(pen.chooser===me){
+        act = `<div class="hint">${N(c)}님의 원판이 섞여 있어요. 하나를 골라 버리세요!</div><div class="picks">
+          ${pen.options.map((d,i)=>`<button data-a="pen" data-i="${i}">${disc('back',g.colors[c],64)}</button>`).join('')}</div>`;
+      } else if(c===me){
+        act = `<div class="hint">${N(pen.chooser)}님이 내 원판 중 하나를 고르는 중… 😱</div>`;
+      } else act = `<div class="hint">${N(pen.chooser)}님이 고르는 중…</div>`;
+      break;
+    }
+    case 'chooseStart':
+      act = g.challenger===me ? chooseStartHTML(g) : `<div class="hint">${N(g.challenger)}님이 고르는 중…</div>`;
+      break;
+    case 'result': {
+      let msg = g.result.type==='success' ? `<div class="result-big">✨ ${N(g.challenger)}님 성공!</div>` : `<div class="result-big">💀 도전 실패</div>`;
+      if(g.lost && g.lost.p===me) msg += `<div class="hint">내가 잃은 원판: <b>${g.lost.d==='s'?'💀 해골':'🌹 장미'}</b> (다른 사람은 몰라요)</div>`;
+      act = msg + `<div class="row c"><button class="btn gold" data-a="next">다음 라운드 ▶</button></div>`;
+      break;
+    }
+    case 'over': act = overHTML(g); break;
+  }
+  if(g.phase==='over' && !amAlive) act = overHTML(g);
+  // 내 더미 (나만 앞면이 보임)
+  const f = g.flips[me]||0;
+  const hidden = s.slice(0, s.length - f);
+  const mine = hidden.map(d => disc(d, ci, 44)).join('');
+  const stars = '★'.repeat(g.points[me]) + '☆'.repeat(SK.WIN_POINTS - g.points[me]);
+  const myturn = g.current===me && !['result','over','place'].includes(g.phase);
+  return `<div class="me ${myturn?'turn':''}"><div class="mewrap">
+    <div class="mymat">
+      <div class="mhead"><span class="dot" style="background:${COLORS[ci].base}"></span>${esc(g.names[me])} (나) <span class="stars">${stars}</span></div>
+      <div class="circle side${g.points[me]>0?1:0}" style="width:96px;height:96px">${hidden.length? `<span class="count" style="position:static">${hidden.length}</span>`:`<span class="empty">${s.length?'':'비어 있음'}</span>`}</div>
+      <div class="mystack">${mine ? `<span class="lbl">▲ 맨 위 · 나만 보여요</span>` : ''}${mine}</div>
+      <div class="owned">손에 🌹${h.r} 💀${h.s} · 보유 ${SK.ownedCount(g,me)}장</div>
+      ${(revIndexMap(g)[me]||[]).length ? `<div class="revealed">${(revIndexMap(g)[me]).map(i=>disc(g.revealed[i].d,ci,26,ui.seen.has(revKey(g,i))?'':'flipin')).join('')}</div>`:''}
+    </div>
+    <div class="actions">${act}</div>
+  </div></div>`;
+}
+function chooseStartHTML(g){
+  return `<div class="hint">다음 라운드를 시작할 사람을 고르세요.</div><div class="row c">
+    ${SK.alive(g).map(p=>`<button class="btn sm" data-a="cs" data-t="${p}"><span class="dot" style="background:${COLORS[g.colors[p]].base}"></span>${esc(g.names[p])}</button>`).join('')}</div>`;
+}
+function overHTML(g){
+  const w = g.winner;
+  return `<div class="win">${disc('r', g.colors[w], 110)}<h2>🏆 ${esc(g.names[w])}님 승리!</h2>
+    <div class="hint">${g.result && g.result.type==='last' ? '최후의 생존자' : '도전 2회 성공'}</div>
+    ${isHost() ? `<div class="row c" style="margin-top:10px"><button class="btn gold" data-a="restart">같은 멤버로 다시 하기</button><button class="btn" data-a="lobby">대기실로</button></div>` : '<div class="hint">방장이 다음 게임을 시작할 수 있어요.</div>'}</div>`;
+}
+function topHTML(g){
+  return `<div class="top"><span class="t">💀 스컬</span><span class="code">${esc(S.code)}</span>
+    ${g?`<span class="chip">${g.round}라운드</span>`:''}<span class="grow"></span>
+    <button class="btn sm ghost" data-a="rules">규칙</button>
+    ${isHost() && g && g.phase!=='over' && !S.board ? '<button class="btn sm ghost" data-a="hostmenu">⚙️</button>' : ''}
+    <button class="btn sm ghost" data-a="leave">나가기</button></div><div class="tribal"></div>`;
+}
+function bidInfoHTML(g){
+  const T = SK.total(g), chips = [`<span class="chip">놓인 원판 <b>${T}</b>장</span>`];
+  if(['bid','reveal','penalty'].includes(g.phase) || (g.phase==='result' && g.bid))
+    chips.push(`<span class="chip hot">도전 <b>${g.bid}</b>장 · ${esc(g.names[g.bidder]||'')}</span>`);
+  if(['reveal','penalty','result'].includes(g.phase) && g.challenger) chips.push(`<span class="chip">🌹 <b>${g.roses}</b> / ${g.bid}</span>`);
+  return `<div class="bidinfo">${chips.join('')}</div>`;
+}
+function logHTML(g, n){
+  const items = g.log.slice(-(n||40)).reverse().map(t=>`<div>${esc(t)}</div>`).join('');
+  return items;
+}
+
+function gameHTML(g){
+  const st = statusText(g);
+  const i = g.order.indexOf(S.pid);
+  const others = g.order.slice(i+1).concat(g.order.slice(0,i));
+  return topHTML(g) +
+    `<div class="banner ${st.me?'me':''} ${st.bad?'bad':''} ${st.good?'good':''}">${st.t}</div>` +
+    bidInfoHTML(g) +
+    `<div class="mats">${others.map(p=>matHTML(g,p)).join('')}</div>` +
+    myAreaHTML(g) +
+    `<details class="log" ${ui.logOpen?'open':''}><summary>게임 기록</summary><div class="loglist">${logHTML(g)}</div></details>`;
+}
+function boardHTML(g){
+  const st = statusText(g);
+  const over = g.phase==='over' ? `<div class="card win">${disc('r', g.colors[g.winner], 160)}<h2 style="font-size:56px">🏆 ${esc(g.names[g.winner])}님 승리!</h2></div>` : '';
+  return topHTML(g) +
+    `<div class="banner ${st.bad?'bad':''} ${st.good?'good':''}">${st.t.replace(/^내 차례!.*/, '')}</div>` + over +
+    bidInfoHTML(g) +
+    `<div class="boardgrid"><div class="mats">${g.order.map(p=>matHTML(g,p)).join('')}</div>
+     <div class="card"><b style="color:var(--dim)">게임 기록</b><div class="loglist">${logHTML(g,14)}</div></div></div>`;
+}
+function lobbyHTML(){
+  const ps = sortedPlayers(), host = isHost();
+  const me = (S.room.players||{})[S.pid];
+  const used = ps.filter(p=>p.id!==S.pid).map(p=>p.color);
+  const link = location.origin + location.pathname + '?room=' + S.code;
+  return topHTML(null) + `<div class="card" style="text-align:center">
+      <div class="hint">방 코드</div><div class="bigcode">${esc(S.code)}</div>
+      <div class="hint" style="word-break:break-all">${esc(link)}</div>
+      <div class="row c" style="margin-top:8px"><button class="btn sm" data-a="copy">링크 복사</button>
+      <button class="btn sm" data-a="openboard">📺 전자칠판 화면 열기</button></div>
+    </div>
+    ${me ? `<div class="card"><div class="hint" style="text-align:left;margin-bottom:6px">내 원판 색</div><div class="colors">
+      ${COLORS.map((c,i)=>`<button style="background:${c.base}" class="${me.color===i?'on':''}" data-a="color" data-c="${i}" ${used.includes(i)?'disabled':''} title="${c.n}"></button>`).join('')}
+    </div></div>` : ''}
+    <div class="card"><div class="row"><b>참가자 ${ps.length}/${SK.MAXP}</b><span class="grow"></span><span class="hint">3~6명</span></div>
+      <div class="plist" style="margin-top:8px">${ps.map(p=>`<div class="pitem">${disc('back',p.color,36)}<span class="nm">${esc(p.name)}${p.id===S.room.meta.host?' 👑':''}${p.id===S.pid?' (나)':''}</span>
+        ${p.online===false?'<span class="off">연결 끊김</span>':''}
+        ${host && p.id!==S.pid ? `<button class="btn sm ghost" data-a="kick" data-t="${p.id}">내보내기</button>`:''}</div>`).join('')}</div>
+      <div style="margin-top:14px;text-align:center">
+      ${host ? `<button class="btn gold" data-a="start" ${ps.length<SK.MINP?'disabled':''}>게임 시작</button>
+        ${ps.length<SK.MINP?`<div class="hint" style="margin-top:6px">${SK.MINP}명 이상 모이면 시작할 수 있어요</div>`:''}`
+        : '<div class="hint">방장이 게임을 시작하길 기다리는 중…</div>'}</div></div>`;
+}
+function boardLobbyHTML(){
+  const ps = sortedPlayers();
+  return topHTML(null) + `<div class="card" style="text-align:center">
+      <div class="hint" style="font-size:26px">스마트기기로 접속해서 이 코드를 입력하세요</div>
+      <div class="bigcode">${esc(S.code)}</div></div>
+    <div class="card"><div class="plist">${ps.map(p=>`<div class="pitem">${disc('back',p.color,56)}<span class="nm">${esc(p.name)}</span></div>`).join('') || '<div class="hint">아직 아무도 없어요</div>'}</div></div>`;
+}
+function homeHTML(){
+  const qcode = new URLSearchParams(location.search).get('room') || '';
+  return `<h1 class="logo">💀 SKULL 🌹</h1><p class="sub">해골과 장미 · 3~6인 블러핑 게임</p><div class="tribal"></div>
+    <div class="row c" style="margin:14px 0">${disc('back',0,54)}${disc('r',1,54)}${disc('s',2,54)}${disc('back',3,54)}</div>
+    <div class="card">
+      <div class="field"><label>이름</label><input id="nm" maxlength="10" value="${esc(S.name)}" placeholder="예: 김하늘"></div>
+      <button class="btn gold" style="width:100%" data-a="create">새 방 만들기</button>
+    </div>
+    <div class="card">
+      <div class="field"><label>방 코드</label><input id="cd" maxlength="4" value="${esc(qcode)}" placeholder="ABCD" style="text-transform:uppercase;letter-spacing:6px;text-align:center"></div>
+      <div class="row"><button class="btn grow" data-a="join">참가하기</button><button class="btn grow" data-a="joinboard">📺 큰 화면으로 보기</button></div>
+    </div>
+    <div class="err">${esc(S.err)}</div>
+    <div class="row c"><button class="btn sm ghost" data-a="rules">📜 규칙 보기</button></div>`;
+}
+function rulesHTML(){
+  return `<div class="modal" data-a="closerules"><div class="card" data-stop="1">
+    <h3>📜 스컬 규칙</h3><ol>
+    <li>각자 원판 4장(🌹 장미 3장, 💀 해골 1장)과 매트를 가지고 시작해요.</li>
+    <li><b>준비:</b> 라운드마다 모두 원판 1장을 뒷면으로 몰래 내려놓아요.</li>
+    <li><b>차례:</b> 선부터 돌아가며 원판을 1장 더 올리거나, <b>도전</b>을 선언하고 "몇 장 뒤집겠다"고 숫자를 불러요.</li>
+    <li><b>경매:</b> 도전이 시작되면 돌아가며 더 높은 숫자를 부르거나 패스해요. 패스하면 이번 경매에서 빠져요. 가장 높게 부른 사람이 도전자가 돼요.</li>
+    <li><b>뒤집기:</b> 도전자는 <b>자기 더미를 먼저 전부</b> 뒤집고, 그다음 다른 사람 더미의 맨 위부터 한 장씩 골라 뒤집어요.</li>
+    <li><b>성공:</b> 부른 수만큼 장미가 나오면 성공! 매트를 뒤집어요(★). <b>두 번 성공하면 승리</b>해요.</li>
+    <li><b>실패:</b> 해골이 나오면 실패! 해골 주인이 도전자의 원판을 섞어 1장을 골라 버려요. 어떤 원판이 버려졌는지는 본인만 알아요. 다음 라운드는 해골 주인부터 시작해요.</li>
+    <li>자기 해골을 뒤집었다면 버릴 원판을 직접 고르고, 다음 라운드 선도 직접 정해요.</li>
+    <li>원판을 모두 잃으면 탈락해요. 마지막까지 남은 1명도 승리해요.</li>
+    </ol><div class="row c"><button class="btn gold" data-a="closerules">알겠어요</button></div></div></div>`;
+}
+
+function render(){
+  const app = $('#app');
+  // 열려 있는 기록창 상태 보존
+  const lg = document.querySelector('details.log'); if(lg) ui.logOpen = lg.open;
+  let html = '';
+  if(!S.code) html = homeHTML();
+  else if(S.room === undefined) html = topHTML(null) + '<div class="card hint">불러오는 중…</div>';
+  else if(S.room === null) html = topHTML(null) + '<div class="card hint">방이 없어졌어요. 나가기를 눌러 주세요.</div>';
+  else {
+    const g = S.room.game ? SK.norm(JSON.parse(JSON.stringify(S.room.game))) : null;
+    if(S.board || (g && !g.order.includes(S.pid))) html = g ? boardHTML(g) : boardLobbyHTML();
+    else if(!g) html = lobbyHTML();
+    else html = gameHTML(g);
+    if(g){
+      // 차례 알림 진동
+      const key = g.seq + ':' + g.current;
+      if(!S.board && g.current===S.pid && ui.lastTurnKey!==key && navigator.vibrate){ try{ navigator.vibrate(120); }catch(e){} }
+      ui.lastTurnKey = key;
+      if(g.phase==='place' && g.revealed.length===0) ui.seen.clear();
+      setTimeout(() => g.revealed.forEach((r,i)=>ui.seen.add(revKey(g,i))), 0);
+    }
+  }
+  if(ui.rules) html += rulesHTML();
+  html += '<div class="foot">made by m00n</div>';
+  app.innerHTML = html;
+  const cd = $('#cd'); if(cd) cd.addEventListener('keydown', e=>{ if(e.key==='Enter') joinRoom(cd.value,false); });
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if(!el) return;
+  if(el.dataset.a==='closerules' && e.target.closest('[data-stop]') && !e.target.closest('button')) return;
+  const a = el.dataset.a, t = el.dataset.t;
+  const g = S.room && S.room.game ? SK.norm(JSON.parse(JSON.stringify(S.room.game))) : null;
+  switch(a){
+    case 'create': createRoom(); break;
+    case 'join': joinRoom($('#cd').value, false); break;
+    case 'joinboard': joinRoom($('#cd').value, true); break;
+    case 'leave': if(!S.room || !S.room.game || S.board || confirm('방에서 나갈까요? (같은 기기로 코드를 다시 입력하면 돌아올 수 있어요)')) leave(); break;
+    case 'rules': ui.rules = true; render(); break;
+    case 'closerules': ui.rules = false; render(); break;
+    case 'copy': navigator.clipboard && navigator.clipboard.writeText(location.origin + location.pathname + '?room=' + S.code).then(()=>{ el.textContent='복사됨!'; }); break;
+    case 'openboard': window.open(location.pathname + '?room=' + S.code + '&board=1', '_blank'); break;
+    case 'color': S.ref.child('players/'+S.pid+'/color').set(+el.dataset.c); break;
+    case 'kick': S.ref.child('players/'+t).remove(); break;
+    case 'start': startGame(); break;
+    case 'restart': restartGame(); break;
+    case 'lobby': toLobby(); break;
+    case 'hostmenu':
+      if(confirm('게임을 중단하고 대기실로 돌아갈까요?')) toLobby(); break;
+    case 'place': act({type:'place', d:el.dataset.d}); break;
+    case 'bv': ui.bidVal += +el.dataset.v; render(); break;
+    case 'bid': act({type:'bid', n:ui.bidVal}); break;
+    case 'pass': act({type:'pass'}); break;
+    case 'flipOwn': act({type:'flipOwn'}); break;
+    case 'flip': act({type:'flip', t}); break;
+    case 'pen': act(el.dataset.d ? {type:'penalty', d:el.dataset.d} : {type:'penalty', i:+el.dataset.i}); break;
+    case 'cs': act({type:'chooseStart', t}); break;
+    case 'next': act({type:'nextRound'}); break;
+  }
+});
+
+// 주소로 바로 들어오기 (?room=ABCD / &board=1)
+(function boot(){
+  const q = new URLSearchParams(location.search), code = (q.get('room')||'').toUpperCase();
+  if(code && q.get('board')==='1' && db){ joinRoom(code, true); return; }
+  if(code && db && S.name){
+    roomRef(code).child('players/'+S.pid).get().then(s => { if(s.exists()) joinRoom(code, false); else render(); }).catch(()=>render());
+    return;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
